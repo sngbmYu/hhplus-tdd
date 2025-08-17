@@ -3,9 +3,11 @@ package io.hhplus.tdd.point.presentation;
 import io.hhplus.tdd.point.application.PointService;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.UserPoint;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/point")
 @Slf4j
+@Validated
 @RequiredArgsConstructor
 public class PointController {
 
@@ -20,7 +23,7 @@ public class PointController {
 
 	@GetMapping("{id}")
 	public UserPoint point(
-		@PathVariable long id
+		@PathVariable @PositiveOrZero long id
 	) {
 		return pointService.findUserPointById(id);
 	}
