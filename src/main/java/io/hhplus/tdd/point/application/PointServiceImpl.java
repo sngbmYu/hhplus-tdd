@@ -1,6 +1,10 @@
 package io.hhplus.tdd.point.application;
 
+import java.util.List;
+
+import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.infrastructure.PointHistoryRepository;
 import io.hhplus.tdd.point.infrastructure.UserPointRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -11,9 +15,15 @@ import org.springframework.stereotype.Service;
 public class PointServiceImpl implements PointService {
 
 	private final UserPointRepository userPointRepository;
+	private final PointHistoryRepository pointHistoryRepository;
 
 	@Override
 	public UserPoint findUserPointById(long id) {
 		return userPointRepository.findById(id);
+	}
+
+	@Override
+	public List<PointHistory> findPointHistoryById(long id) {
+		return null;
 	}
 }

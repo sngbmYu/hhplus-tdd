@@ -1,8 +1,13 @@
 package io.hhplus.tdd.point.application;
 
+import java.util.List;
+
+import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.UserPoint;
 
 public interface PointService {
 
     UserPoint findUserPointById(long id);
+
+	List<PointHistory> findPointHistoryById(long id);
 }
