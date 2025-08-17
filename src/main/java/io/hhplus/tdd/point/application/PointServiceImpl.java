@@ -24,6 +24,6 @@ public class PointServiceImpl implements PointService {
 
 	@Override
 	public List<PointHistory> findPointHistoryById(long id) {
-		return null;
+		return pointHistoryRepository.findAllByUserId(id);
 	}
 }
