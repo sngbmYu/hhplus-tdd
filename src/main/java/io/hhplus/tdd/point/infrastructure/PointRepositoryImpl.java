@@ -1,13 +1,19 @@
 package io.hhplus.tdd.point.infrastructure;
 
+import io.hhplus.tdd.database.UserPointTable;
 import io.hhplus.tdd.point.domain.UserPoint;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Repository;
 
 @Repository
+@RequiredArgsConstructor
 public class PointRepositoryImpl implements PointRepository {
 
-    @Override
-    public UserPoint findById(long id) {
-        return null;
-    }
+	private final UserPointTable userPointTable;
+
+	@Override
+	public UserPoint findById(long id) {
+		return userPointTable.selectById(id);
+	}
 }
