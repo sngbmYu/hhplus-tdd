@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
-public class PointRepositoryImpl implements PointRepository {
+public class UserPointRepositoryImpl implements UserPointRepository {
 
 	private final UserPointTable userPointTable;
 

@@ -1,7 +1,7 @@
 package io.hhplus.tdd.point.application;
 
 import io.hhplus.tdd.point.domain.UserPoint;
-import io.hhplus.tdd.point.infrastructure.PointRepository;
+import io.hhplus.tdd.point.infrastructure.UserPointRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,7 +16,7 @@ import static org.mockito.Mockito.when;
 class PointServiceTest {
 
     @Mock
-    private PointRepository pointRepository;
+    private UserPointRepository userPointRepository;
 
     @InjectMocks
     private PointServiceImpl pointService;
@@ -27,7 +27,7 @@ class PointServiceTest {
     void givenId_whenFindPoint_thenReturnUserPoint() {
         // given
         long id = 0L;
-        when(pointRepository.findById(id))
+        when(userPointRepository.findById(id))
                 .thenReturn(new UserPoint(id, 100L, System.currentTimeMillis()));
 
         // when
@@ -43,7 +43,7 @@ class PointServiceTest {
     void givenNotExistId_whenFindPoint_thenReturnZeroPoint() {
         // given
         long id = 1L;
-        when(pointRepository.findById(id))
+        when(userPointRepository.findById(id))
                 .thenReturn(UserPoint.empty(id));
 
         // when
