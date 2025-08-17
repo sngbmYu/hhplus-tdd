@@ -15,7 +15,7 @@ public class PointHistoryRepositoryImpl implements PointHistoryRepository {
 	private final PointHistoryTable pointHistoryTable;
 
 	@Override
-	public List<PointHistory> findAllByUserId(long id) {
-		return pointHistoryTable.selectAllByUserId(id);
+	public List<PointHistory> findAllByUserId(long userId) {
+		return pointHistoryTable.selectAllByUserId(userId);
 	}
 }

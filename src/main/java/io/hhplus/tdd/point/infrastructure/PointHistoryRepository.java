@@ -6,5 +6,5 @@ import io.hhplus.tdd.point.domain.PointHistory;
 
 public interface PointHistoryRepository {
 
-	List<PointHistory> findAllByUserId(long id);
+	List<PointHistory> findAllByUserId(long userId);
 }

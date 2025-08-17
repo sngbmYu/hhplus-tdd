@@ -9,5 +9,5 @@ public interface PointService {
 
     UserPoint findUserPointById(long id);
 
-	List<PointHistory> findPointHistoryById(long id);
+	List<PointHistory> findPointHistoriesByUserId(long userId);
 }

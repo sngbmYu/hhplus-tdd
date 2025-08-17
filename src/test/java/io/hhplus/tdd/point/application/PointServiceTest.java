@@ -66,14 +66,14 @@ class PointServiceTest {
 	@DisplayName("회원 아이디로 포인트 내역을 조회하면 해당하는 PointHistory의 리스트가 반환된다.")
 	void givenId_whenFindPointHistory_thenReturnPointHistoryList() {
 		// given
-		long id = 0L;
-		PointHistory sampleHistory = new PointHistory(0L, id, 1000L, TransactionType.CHARGE,
+		long userId = 0L;
+		PointHistory sampleHistory = new PointHistory(0L, userId, 1000L, TransactionType.CHARGE,
 			System.currentTimeMillis());
-		when(pointHistoryRepository.findAllByUserId(id))
+		when(pointHistoryRepository.findAllByUserId(userId))
 			.thenReturn(List.of(sampleHistory));
 
 		// when
-		List<PointHistory> pointHistoryList = pointService.findPointHistoryById(id);
+		List<PointHistory> pointHistoryList = pointService.findPointHistoriesByUserId(userId);
 
 		// then
 		assertThat(pointHistoryList).isNotEmpty();
@@ -85,12 +85,12 @@ class PointServiceTest {
 	@DisplayName("존재하지 않는 회원 아이디로 포인트 내역을 조회하면 빈 PointHistory 리스트가 반환된다.")
 	void givenNotExistId_whenFindPointHistory_thenReturnEmptyPointHistoryList() {
 		// given
-		long id = 1L;
-		when(pointHistoryRepository.findAllByUserId(id))
+		long userId = 1L;
+		when(pointHistoryRepository.findAllByUserId(userId))
 			.thenReturn(List.of());
 
 		// when
-		List<PointHistory> pointHistoryList = pointService.findPointHistoryById(id);
+		List<PointHistory> pointHistoryList = pointService.findPointHistoriesByUserId(userId);
 
 		// then
 		assertThat(pointHistoryList).isEmpty();
