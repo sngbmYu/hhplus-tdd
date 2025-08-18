@@ -26,4 +26,9 @@ public class PointServiceImpl implements PointService {
 	public List<PointHistory> findPointHistoriesByUserId(long userId) {
 		return pointHistoryRepository.findAllByUserId(userId);
 	}
+
+    @Override
+    public UserPoint chargeUserPoint(long userId, long amount) {
+        return null;
+    }
 }

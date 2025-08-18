@@ -16,4 +16,9 @@ public class UserPointRepositoryImpl implements UserPointRepository {
 	public UserPoint findById(long id) {
 		return userPointTable.selectById(id);
 	}
+
+    @Override
+    public UserPoint save(UserPoint userPoint) {
+        return null;
+    }
 }
