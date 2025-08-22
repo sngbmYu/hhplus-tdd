@@ -2,6 +2,7 @@ package io.hhplus.tdd.point.infrastructure;
 
 import java.util.List;
 
+import io.hhplus.tdd.point.domain.TransactionType;
 import org.springframework.stereotype.Repository;
 
 import io.hhplus.tdd.database.PointHistoryTable;
@@ -21,6 +22,11 @@ public class PointHistoryRepositoryImpl implements PointHistoryRepository {
 
     @Override
     public PointHistory save(PointHistory pointHistory) {
-        return null;
+        long userId = pointHistory.userId();
+        long amount = pointHistory.amount();
+        TransactionType type = pointHistory.type();
+        long updateMillis = pointHistory.updateMillis();
+
+        return pointHistoryTable.insert(userId, amount, type, updateMillis);
     }
 }
