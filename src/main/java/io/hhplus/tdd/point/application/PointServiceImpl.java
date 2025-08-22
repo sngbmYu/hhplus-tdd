@@ -83,4 +83,9 @@ public class PointServiceImpl implements PointService {
 
         log.info("UserPoint 롤백이 완료됐습니다. ({})", result);
     }
+
+    @Override
+    public UserPoint useUserPoint(long userId, long amount) {
+        return null;
+    }
 }

@@ -1,7 +1,9 @@
 package io.hhplus.tdd.point.application;
 
+import io.hhplus.tdd.common.exception.AmountExceedBalanceException;
 import io.hhplus.tdd.common.exception.ChargePointFailureException;
 import io.hhplus.tdd.common.exception.InvariantViolationException;
+import io.hhplus.tdd.common.exception.UsePointFailureException;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
@@ -200,5 +202,119 @@ class PointServiceTest {
             // then
             assertThatThrownBy(casePointHistory).isInstanceOf(ChargePointFailureException.class);
         }
+    }
+
+    @Nested
+    @DisplayName("포인트 사용 - useUserPoint()")
+    class UseUserPointTest {
+		// 테스트 작성 이유: 정상 시나리오에서 서비스가 올바르게 동작하는지 검증하기 위해
+		@Test
+		@DisplayName("회원 아이디와 사용 금액이 주어지면 해당 금액만큼 포인트가 차감된 UserPoint 객체가 반환된다.")
+		void givenIdAndAmount_whenUsePoint_thenReturnUpdatedUserPoint() {
+			// given
+			long userId = 0L;
+			long amount = 100L;
+
+			when(userPointRepository.findById(userId))
+				.thenReturn(new UserPoint(userId, amount, System.currentTimeMillis()));
+			when(userPointRepository.save(any(UserPoint.class)))
+				.thenAnswer(inv -> inv.getArgument(0));
+
+			// when
+			UserPoint userPoint = pointService.useUserPoint(userId, amount);
+
+			// then
+			assertThat(userPoint.id()).isEqualTo(userId);
+			assertThat(userPoint.point()).isEqualTo(0L);
+
+			ArgumentCaptor<PointHistory> pointHistoryCaptor = ArgumentCaptor.forClass(PointHistory.class);
+			verify(pointHistoryRepository).save(pointHistoryCaptor.capture());
+			assertThat(pointHistoryCaptor.getValue().userId()).isEqualTo(userId);
+			assertThat(pointHistoryCaptor.getValue().amount()).isEqualTo(amount);
+			assertThat(pointHistoryCaptor.getValue().type()).isEqualTo(TransactionType.USE);
+		}
+
+        // 테스트 작성 이유: 부적합한 사용 금액이 주어졌을 때, 서비스가 예외 시나리오를 정상적으로 처리하는지 검증하기 위해
+        // - amount < 0 : '사용'이라는 역할을 훼손하기 때문에 부적합함
+        // - amount == 0 : 유효한 동작을 하지 않기 때문에 부적합함
+        @Test
+        @DisplayName("사용 금액이 0 이하로 주어지면 InvariantViolationException이 발생한다.")
+        void givenNonPositiveAmount_whenUsePoint_thenThrowInvariantViolationException() {
+			// given
+			long userId = 0L;
+			long amountZero = 0L;
+			long amountNegative = -1L;
+
+			// when
+			ThrowableAssert.ThrowingCallable caseZero = () -> pointService.useUserPoint(userId, amountZero);
+			ThrowableAssert.ThrowingCallable caseNegative = () -> pointService.useUserPoint(userId, amountNegative);
+
+			// then
+			assertThatThrownBy(caseZero).isInstanceOf(InvariantViolationException.class);
+			assertThatThrownBy(caseNegative).isInstanceOf(InvariantViolationException.class);
+
+			verifyNoInteractions(userPointRepository, pointHistoryRepository);
+        }
+
+        // 테스트 작성 이유: 보유하고 있는 포인트를 초과하여 사용하려는 예외를 잘 처리하는지 검증하기 위해
+        @Test
+        @DisplayName("사용 금액이 보유한 잔액을 초과하면 AmountExceedBalanceException이 발생한다.")
+        void givenExceedBalance_whenUsePoint_thenThrowAmountExceedBalanceException() {
+			// given
+			long userId = 0L;
+			long amount = 100L;
+			long exceed = 200L;
+
+			when(userPointRepository.findById(userId))
+				.thenReturn(new UserPoint(userId, amount, System.currentTimeMillis()));
+
+			// when
+			ThrowableAssert.ThrowingCallable caseExceed = () -> pointService.useUserPoint(userId, exceed);
+
+			// then
+			assertThatThrownBy(caseExceed).isInstanceOf(AmountExceedBalanceException.class);
+
+			verify(userPointRepository, never()).save(any(UserPoint.class));
+			verify(pointHistoryRepository, never()).save(any(PointHistory.class));
+        }
+
+		// 테스트 작성 이유: 트랜잭션의 원자성을 검증하기 위해
+		// 추가로 처음에는 롤백을 테스트하려고 했지만, 단위 테스트에서 롤백을 검증하는 것은 제한적이라고 생각하여 예외만 검증
+		@Test
+		@DisplayName("UserPoint 저장 중 DB 오류가 발생하면 UsePointFailureException이 발생하고, 포인트 내역이 기록되지 않는다.")
+		void givenUserPointSaveError_whenUsePoint_thenThrowUsePointFailureException() {
+			// given
+			when(userPointRepository.findById(anyLong()))
+				.thenReturn(new UserPoint(0L, 100L, System.currentTimeMillis()));
+			when(userPointRepository.save(any(UserPoint.class)))
+				.thenThrow(new RuntimeException("DB error"));
+
+			// when
+			ThrowableAssert.ThrowingCallable caseUserPoint = () -> pointService.useUserPoint(0L, 100L);
+
+			// then
+			assertThatThrownBy(caseUserPoint).isInstanceOf(UsePointFailureException.class);
+			verify(pointHistoryRepository, never()).save(any(PointHistory.class));
+		}
+
+		// 테스트 작성 이유: 트랜잭션의 원자성을 검증하기 위해
+		// 추가로 처음에는 롤백을 테스트하려고 했지만, 단위 테스트에서 롤백을 검증하는 것은 제한적이라고 생각하여 예외만 검증
+		@Test
+		@DisplayName("PointHistory 저장 중 DB 오류가 발생하면 UsePointFailureException이 발생한다.")
+		void givenPointHistorySaveError_whenUsePoint_thenThrowUsePointFailureException() {
+			// given
+			when(userPointRepository.findById(anyLong()))
+				.thenReturn(new UserPoint(0L, 100L, System.currentTimeMillis()));
+			when(userPointRepository.save(any(UserPoint.class)))
+				.thenAnswer(inv -> inv.getArgument(0));
+			when(pointHistoryRepository.save(any(PointHistory.class)))
+				.thenThrow(new RuntimeException("DB error"));
+
+			// when
+			ThrowableAssert.ThrowingCallable casePointHistory = () -> pointService.useUserPoint(0L, 100L);
+
+			// then
+			assertThatThrownBy(casePointHistory).isInstanceOf(UsePointFailureException.class);
+		}
     }
 }
