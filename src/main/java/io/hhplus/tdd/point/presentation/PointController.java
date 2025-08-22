@@ -3,6 +3,7 @@ package io.hhplus.tdd.point.presentation;
 import io.hhplus.tdd.point.application.PointService;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.UserPoint;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +38,8 @@ public class PointController {
 
     @PatchMapping("{id}/charge")
     public UserPoint charge(
-            @PathVariable long id,
-            @RequestBody long amount
+            @PathVariable @PositiveOrZero long id,
+            @RequestBody @Positive long amount
     ) {
         return pointService.chargeUserPoint(id, amount);
     }

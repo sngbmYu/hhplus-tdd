@@ -8,32 +8,35 @@ import io.hhplus.tdd.point.infrastructure.PointHistoryRepository;
 import io.hhplus.tdd.point.infrastructure.UserPointRepository;
 import lombok.RequiredArgsConstructor;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 import static io.hhplus.tdd.point.domain.TransactionType.CHARGE;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PointServiceImpl implements PointService {
 
-	private final UserPointRepository userPointRepository;
-	private final PointHistoryRepository pointHistoryRepository;
+    private final UserPointRepository userPointRepository;
+    private final PointHistoryRepository pointHistoryRepository;
 
-	@Override
-	public UserPoint findUserPointById(long id) {
-		return userPointRepository.findById(id);
-	}
+    @Override
+    public UserPoint findUserPointById(long id) {
+        return userPointRepository.findById(id);
+    }
 
-	@Override
-	public List<PointHistory> findPointHistoriesByUserId(long userId) {
-		return pointHistoryRepository.findAllByUserId(userId);
-	}
+    @Override
+    public List<PointHistory> findPointHistoriesByUserId(long userId) {
+        return pointHistoryRepository.findAllByUserId(userId);
+    }
 
     @Override
     public UserPoint chargeUserPoint(long userId, long amount) {
         if (amount <= 0) {
+            log.error("amount 값은 0보다 커야 합니다. (입력값: {})", amount);
             throw new InvariantViolationException();
         }
 
@@ -49,6 +52,7 @@ public class PointServiceImpl implements PointService {
         try {
             savedUserPoint = userPointRepository.save(newUserPoint);
         } catch (Exception e) {
+            log.error("UserPoint 저장에 실패했습니다. ({})", newUserPoint);
             throw new ChargePointFailureException(errorMessage, e);
         }
 
@@ -59,9 +63,24 @@ public class PointServiceImpl implements PointService {
         try {
             pointHistoryRepository.save(pointHistory);
         } catch (Exception e) {
+            log.error("PointHistory 저장에 실패했습니다. ({})", pointHistory);
+            rollbackUserPoint(userPoint, savedUserPoint);
             throw new ChargePointFailureException(errorMessage, e);
         }
 
         return savedUserPoint;
+    }
+
+    private void rollbackUserPoint(UserPoint prev, UserPoint curr) {
+        log.info("UserPoint 롤백을 시작합니다. ({})", curr);
+
+        UserPoint result;
+        try {
+            result = userPointRepository.save(prev);
+        } catch (Exception e) {
+            throw new RuntimeException("UserPoint 롤백에 실패했습니다.");
+        }
+
+        log.info("UserPoint 롤백이 완료됐습니다. ({})", result);
     }
 }
