@@ -1,7 +1,11 @@
 package io.hhplus.tdd.point.application;
 
+import static io.hhplus.tdd.point.domain.TransactionType.*;
+
+import io.hhplus.tdd.common.exception.AmountExceedBalanceException;
 import io.hhplus.tdd.common.exception.ChargePointFailureException;
 import io.hhplus.tdd.common.exception.InvariantViolationException;
+import io.hhplus.tdd.common.exception.UsePointFailureException;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.UserPoint;
 import io.hhplus.tdd.point.infrastructure.PointHistoryRepository;
@@ -12,8 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
-import static io.hhplus.tdd.point.domain.TransactionType.CHARGE;
 
 @Slf4j
 @Service
@@ -71,21 +73,51 @@ public class PointServiceImpl implements PointService {
         return savedUserPoint;
     }
 
-    private void rollbackUserPoint(UserPoint prev, UserPoint curr) {
-        log.info("UserPoint 롤백을 시작합니다. ({})", curr);
-
-        UserPoint result;
-        try {
-            result = userPointRepository.save(prev);
-        } catch (Exception e) {
-            throw new RuntimeException("UserPoint 롤백에 실패했습니다.");
-        }
-
-        log.info("UserPoint 롤백이 완료됐습니다. ({})", result);
-    }
-
     @Override
     public UserPoint useUserPoint(long userId, long amount) {
-        return null;
+		if (amount <= 0) {
+			throw new InvariantViolationException();
+		}
+
+		UserPoint userPoint = userPointRepository.findById(userId);
+		if (userPoint.point() < amount) {
+			throw new AmountExceedBalanceException();
+		}
+
+		long newPoint = userPoint.point() - amount;
+		long currentTime = System.currentTimeMillis();
+		UserPoint newUserPoint = new UserPoint(userId, newPoint, currentTime);
+
+		UserPoint savedUserPoint;
+		try {
+			savedUserPoint = userPointRepository.save(newUserPoint);
+		} catch (Exception e) {
+			throw new UsePointFailureException();
+		}
+
+		long tempId = 0L; // id는 auto-increment
+		long savedUserId = savedUserPoint.id();
+		PointHistory pointHistory = new PointHistory(tempId, savedUserId, amount, USE, currentTime);
+
+		try {
+			pointHistoryRepository.save(pointHistory);
+		} catch (Exception e) {
+			throw new UsePointFailureException();
+		}
+
+		return savedUserPoint;
     }
+
+	private void rollbackUserPoint(UserPoint prev, UserPoint curr) {
+		log.info("UserPoint 롤백을 시작합니다. ({})", curr);
+
+		UserPoint result;
+		try {
+			result = userPointRepository.save(prev);
+		} catch (Exception e) {
+			throw new RuntimeException("UserPoint 롤백에 실패했습니다.");
+		}
+
+		log.info("UserPoint 롤백이 완료됐습니다. ({})", result);
+	}
 }
