@@ -2,111 +2,123 @@ package io.hhplus.tdd.point.application;
 
 import static io.hhplus.tdd.point.domain.TransactionType.*;
 
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import io.hhplus.tdd.common.exception.AmountExceedBalanceException;
 import io.hhplus.tdd.common.exception.ChargePointFailureException;
 import io.hhplus.tdd.common.exception.InvariantViolationException;
 import io.hhplus.tdd.common.exception.UsePointFailureException;
 import io.hhplus.tdd.point.domain.PointHistory;
+import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
 import io.hhplus.tdd.point.infrastructure.PointHistoryRepository;
 import io.hhplus.tdd.point.infrastructure.UserPointRepository;
 import lombok.RequiredArgsConstructor;
-
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PointServiceImpl implements PointService {
 
-    private final UserPointRepository userPointRepository;
-    private final PointHistoryRepository pointHistoryRepository;
+	private final UserPointRepository userPointRepository;
+	private final PointHistoryRepository pointHistoryRepository;
 
-    @Override
-    public UserPoint findUserPointById(long id) {
-        return userPointRepository.findById(id);
-    }
+	private static final long MAX_AMOUNT = 100_000_000L; // 임의의 포인트 최대값 설정
 
-    @Override
-    public List<PointHistory> findPointHistoriesByUserId(long userId) {
-        return pointHistoryRepository.findAllByUserId(userId);
-    }
+	private static final String CHARGE_POINT_FAIL = "포인트 충전에 실패했습니다. 잠시 후 다시 시도해주세요.";
+	private static final String USE_POINT_FAIL    = "포인트 사용에 실패했습니다. 잠시 후 다시 시도해주세요.";
 
-    @Override
-    public UserPoint chargeUserPoint(long userId, long amount) {
-        if (amount <= 0) {
-            log.error("amount 값은 0보다 커야 합니다. (입력값: {})", amount);
-            throw new InvariantViolationException();
-        }
+	@Override
+	public UserPoint findUserPointById(long id) {
+		return userPointRepository.findById(id);
+	}
 
-        final String errorMessage = "포인트 충전에 실패했습니다. 잠시 후 다시 시도해주세요.";
+	@Override
+	public List<PointHistory> findPointHistoriesByUserId(long userId) {
+		return pointHistoryRepository.findAllByUserId(userId);
+	}
 
-        UserPoint userPoint = userPointRepository.findById(userId);
+	@Override
+	public UserPoint chargeUserPoint(long userId, long amount) {
+		validAmount(amount);
 
-        long newPoint = userPoint.point() + amount;
-        long currentTime = System.currentTimeMillis();
-        UserPoint newUserPoint = new UserPoint(userId, newPoint, currentTime);
+		UserPoint userPoint = userPointRepository.findById(userId);
 
-        UserPoint savedUserPoint;
-        try {
-            savedUserPoint = userPointRepository.save(newUserPoint);
-        } catch (Exception e) {
-            log.error("UserPoint 저장에 실패했습니다. ({})", newUserPoint);
-            throw new ChargePointFailureException(errorMessage, e);
-        }
-
-        long tempId = 0L; // id는 auto-increment
-        long savedUserId = savedUserPoint.id();
-        PointHistory pointHistory = new PointHistory(tempId, savedUserId, amount, CHARGE, currentTime);
-
-        try {
-            pointHistoryRepository.save(pointHistory);
-        } catch (Exception e) {
-            log.error("PointHistory 저장에 실패했습니다. ({})", pointHistory);
-            rollbackUserPoint(userPoint, savedUserPoint);
-            throw new ChargePointFailureException(errorMessage, e);
-        }
-
-        return savedUserPoint;
-    }
-
-    @Override
-    public UserPoint useUserPoint(long userId, long amount) {
-		if (amount <= 0) {
-			throw new InvariantViolationException();
+		final long current = userPoint.point();
+		if (current >= MAX_AMOUNT || amount > (MAX_AMOUNT - current)) {
+			throw new AmountExceedBalanceException("최대 포인트 한도를 초과했습니다. (현재: " + current + ", 한도: " + MAX_AMOUNT + ')');
 		}
+
+		UserPoint savedUserPoint = saveUserPoint(userPoint, userId, amount, CHARGE);
+		savePointHistory(amount, savedUserPoint, userPoint, CHARGE);
+
+		return savedUserPoint;
+	}
+
+	@Override
+	public UserPoint useUserPoint(long userId, long amount) {
+		validAmount(amount);
 
 		UserPoint userPoint = userPointRepository.findById(userId);
 		if (userPoint.point() < amount) {
-			throw new AmountExceedBalanceException();
+			throw new AmountExceedBalanceException("포인트 잔액이 부족합니다. (현재 잔액: " + userPoint.point() + ')');
 		}
 
-		long newPoint = userPoint.point() - amount;
-		long currentTime = System.currentTimeMillis();
-		UserPoint newUserPoint = new UserPoint(userId, newPoint, currentTime);
+		UserPoint savedUserPoint = saveUserPoint(userPoint, userId, amount, USE);
+		savePointHistory(amount, savedUserPoint, userPoint, USE);
+
+		return savedUserPoint;
+	}
+
+	private void validAmount(long amount) {
+		if (amount <= 0) {
+			log.warn("amount 값은 0보다 커야 합니다. (입력값: {})", amount);
+			throw new InvariantViolationException();
+		}
+	}
+
+	private UserPoint saveUserPoint(UserPoint userPoint, long userId, long amount, TransactionType type) {
+		long prevPoint = userPoint.point();
+		long newPoint = type == CHARGE ? Math.addExact(prevPoint, amount) : Math.subtractExact(prevPoint, amount);
+		UserPoint newUserPoint = new UserPoint(userId, newPoint, System.currentTimeMillis());
 
 		UserPoint savedUserPoint;
 		try {
 			savedUserPoint = userPointRepository.save(newUserPoint);
 		} catch (Exception e) {
-			throw new UsePointFailureException();
+			log.error("UserPoint 저장에 실패했습니다. ({})", newUserPoint);
+
+			if (type == CHARGE) {
+				throw new ChargePointFailureException(CHARGE_POINT_FAIL, e);
+			} else {
+				throw new UsePointFailureException(USE_POINT_FAIL, e);
+			}
 		}
 
+		return savedUserPoint;
+	}
+
+	private void savePointHistory(long amount, UserPoint newUserPoint, UserPoint oldUserPoint, TransactionType type) {
 		long tempId = 0L; // id는 auto-increment
-		long savedUserId = savedUserPoint.id();
-		PointHistory pointHistory = new PointHistory(tempId, savedUserId, amount, USE, currentTime);
+		long savedUserId = newUserPoint.id();
+		PointHistory pointHistory = new PointHistory(tempId, savedUserId, amount, type, System.currentTimeMillis());
 
 		try {
 			pointHistoryRepository.save(pointHistory);
 		} catch (Exception e) {
-			throw new UsePointFailureException();
-		}
+			log.error("PointHistory 저장에 실패했습니다. ({})", pointHistory);
+			rollbackUserPoint(oldUserPoint, newUserPoint);
 
-		return savedUserPoint;
-    }
+			if (type == CHARGE) {
+				throw new ChargePointFailureException(CHARGE_POINT_FAIL, e);
+			} else {
+				throw new UsePointFailureException(USE_POINT_FAIL, e);
+			}
+		}
+	}
 
 	private void rollbackUserPoint(UserPoint prev, UserPoint curr) {
 		log.info("UserPoint 롤백을 시작합니다. ({})", curr);
@@ -115,7 +127,7 @@ public class PointServiceImpl implements PointService {
 		try {
 			result = userPointRepository.save(prev);
 		} catch (Exception e) {
-			throw new RuntimeException("UserPoint 롤백에 실패했습니다.");
+			throw new RuntimeException("UserPoint 롤백에 실패했습니다.", e);
 		}
 
 		log.info("UserPoint 롤백이 완료됐습니다. ({})", result);

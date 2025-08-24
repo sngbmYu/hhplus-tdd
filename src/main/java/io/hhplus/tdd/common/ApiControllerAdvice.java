@@ -1,11 +1,13 @@
 package io.hhplus.tdd.common;
 
+import io.hhplus.tdd.common.exception.AmountExceedBalanceException;
 import io.hhplus.tdd.common.exception.ChargePointFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import io.hhplus.tdd.common.exception.UsePointFailureException;
 import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
@@ -16,7 +18,12 @@ class ApiControllerAdvice extends ResponseEntityExceptionHandler {
 		return ResponseEntity.status(400).body(new ErrorResponse("400", "잘못된 요청 파라미터입니다."));
 	}
 
-    @ExceptionHandler(value = ChargePointFailureException.class)
+	@ExceptionHandler(value = AmountExceedBalanceException.class)
+	public ResponseEntity<ErrorResponse> handleAmountExceedBalanceException(AmountExceedBalanceException e) {
+		return ResponseEntity.status(400).body(new ErrorResponse("400", e.getMessage()));
+	}
+
+    @ExceptionHandler(value = {ChargePointFailureException.class, UsePointFailureException.class})
     public ResponseEntity<ErrorResponse> handleChargePointFailureException(ChargePointFailureException e) {
         return ResponseEntity.status(500).body(new ErrorResponse("500", e.getMessage()));
     }

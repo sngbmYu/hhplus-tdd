@@ -71,7 +71,7 @@ class PointControllerTest {
     // 테스트 작성 이유: 메서드 수준 Bean Validation(@PositiveOrZero)이 정상적으로 동작하는지 검증하기 위해
 	@Test
 	@DisplayName("충전 금액으로 0 이하의 값이 주어졌을 때 포인트를 충전하면 ConstraintViolationException이 발생한다.")
-	void givenLeZeroAmount_whenChargePoint_thenThrowConstraintViolationException() {
+	void givenLEZeroAmount_whenChargePoint_thenThrowConstraintViolationException() {
 		// given
 		long userId = 0L;
         long normalAmount = 100L;
@@ -82,6 +82,29 @@ class PointControllerTest {
         ThrowableAssert.ThrowingCallable normalCase = () -> pointController.charge(userId, normalAmount);
 		ThrowableAssert.ThrowingCallable zeroCase = () -> pointController.charge(userId, zeroAmount);
 		ThrowableAssert.ThrowingCallable negativeCase = () -> pointController.charge(userId, negativeAmount);
+
+		// then
+        assertThatCode(normalCase).doesNotThrowAnyException();
+        assertThatThrownBy(zeroCase).isInstanceOf(ConstraintViolationException.class);
+		assertThatThrownBy(negativeCase).isInstanceOf(ConstraintViolationException.class);
+	}
+
+    // 테스트 작성 이유: 메서드 수준 Bean Validation(@PositiveOrZero)이 정상적으로 동작하는지 검증하기 위해
+	@Test
+	@DisplayName("사용 금액으로 0 이하의 값이 주어졌을 때 포인트를 사용하면 ConstraintViolationException이 발생한다.")
+	void givenLEZeroAmount_whenUsePoint_thenThrowConstraintViolationException() {
+		// given
+		long userId = 0L;
+        long normalAmount = 100L;
+		long zeroAmount = 0L;
+        long negativeAmount = -1L;
+
+		pointController.charge(userId, normalAmount);
+
+		// when
+        ThrowableAssert.ThrowingCallable normalCase = () -> pointController.use(userId, normalAmount);
+		ThrowableAssert.ThrowingCallable zeroCase = () -> pointController.use(userId, zeroAmount);
+		ThrowableAssert.ThrowingCallable negativeCase = () -> pointController.use(userId, negativeAmount);
 
 		// then
         assertThatCode(normalCase).doesNotThrowAnyException();
