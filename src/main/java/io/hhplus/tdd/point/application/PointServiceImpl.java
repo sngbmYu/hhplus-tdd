@@ -3,9 +3,11 @@ package io.hhplus.tdd.point.application;
 import static io.hhplus.tdd.point.domain.TransactionType.*;
 
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.springframework.stereotype.Service;
 
+import io.hhplus.tdd.common.LockManager;
 import io.hhplus.tdd.common.exception.AmountExceedBalanceException;
 import io.hhplus.tdd.common.exception.ChargePointFailureException;
 import io.hhplus.tdd.common.exception.InvariantViolationException;
@@ -22,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class PointServiceImpl implements PointService {
+
+	private final LockManager lockManager;
 
 	private final UserPointRepository userPointRepository;
 	private final PointHistoryRepository pointHistoryRepository;
@@ -45,32 +49,46 @@ public class PointServiceImpl implements PointService {
 	public UserPoint chargeUserPoint(long userId, long amount) {
 		validAmount(amount);
 
-		UserPoint userPoint = userPointRepository.findById(userId);
+		ReentrantLock lock = lockManager.getLock(userId);
+		lock.lock();
 
-		final long current = userPoint.point();
-		if (current >= MAX_AMOUNT || amount > (MAX_AMOUNT - current)) {
-			throw new AmountExceedBalanceException("최대 포인트 한도를 초과했습니다. (현재: " + current + ", 한도: " + MAX_AMOUNT + ')');
+		try {
+			UserPoint userPoint = userPointRepository.findById(userId);
+
+			final long current = userPoint.point();
+			if (current >= MAX_AMOUNT || amount > (MAX_AMOUNT - current)) {
+				throw new AmountExceedBalanceException("최대 포인트 한도를 초과했습니다. (현재: " + current + ", 한도: " + MAX_AMOUNT + ')');
+			}
+
+			UserPoint savedUserPoint = saveUserPoint(userPoint, userId, amount, CHARGE);
+			savePointHistory(amount, savedUserPoint, userPoint, CHARGE);
+
+			return savedUserPoint;
+		} finally {
+			lock.unlock();
 		}
-
-		UserPoint savedUserPoint = saveUserPoint(userPoint, userId, amount, CHARGE);
-		savePointHistory(amount, savedUserPoint, userPoint, CHARGE);
-
-		return savedUserPoint;
 	}
 
 	@Override
 	public UserPoint useUserPoint(long userId, long amount) {
 		validAmount(amount);
 
-		UserPoint userPoint = userPointRepository.findById(userId);
-		if (userPoint.point() < amount) {
-			throw new AmountExceedBalanceException("포인트 잔액이 부족합니다. (현재 잔액: " + userPoint.point() + ')');
+		ReentrantLock lock = lockManager.getLock(userId);
+		lock.lock();
+
+		try {
+			UserPoint userPoint = userPointRepository.findById(userId);
+			if (userPoint.point() < amount) {
+				throw new AmountExceedBalanceException("포인트 잔액이 부족합니다. (현재 잔액: " + userPoint.point() + ')');
+			}
+
+			UserPoint savedUserPoint = saveUserPoint(userPoint, userId, amount, USE);
+			savePointHistory(amount, savedUserPoint, userPoint, USE);
+
+			return savedUserPoint;
+		} finally {
+			lock.unlock();
 		}
-
-		UserPoint savedUserPoint = saveUserPoint(userPoint, userId, amount, USE);
-		savePointHistory(amount, savedUserPoint, userPoint, USE);
-
-		return savedUserPoint;
 	}
 
 	private void validAmount(long amount) {
