@@ -5,6 +5,7 @@ import io.hhplus.tdd.common.exception.AmountExceedBalanceException;
 import io.hhplus.tdd.common.exception.ChargePointFailureException;
 import io.hhplus.tdd.common.exception.InvariantViolationException;
 import io.hhplus.tdd.common.exception.UsePointFailureException;
+import io.hhplus.tdd.common.pagination.PageRequest;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
@@ -89,11 +90,12 @@ class PointServiceTest {
             long userId = 0L;
             PointHistory sampleHistory = new PointHistory(0L, userId, 1000L, TransactionType.CHARGE,
                     System.currentTimeMillis());
-            when(pointHistoryRepository.findAllByUserId(userId))
+            PageRequest pageRequest = new PageRequest(0, 10);
+            when(pointHistoryRepository.findAllByUserId(userId, pageRequest))
                     .thenReturn(List.of(sampleHistory));
 
             // when
-            List<PointHistory> pointHistoryList = pointService.findPointHistoriesByUserId(userId);
+            List<PointHistory> pointHistoryList = pointService.findPointHistoriesByUserId(userId, pageRequest);
 
             // then
             assertThat(pointHistoryList).isNotEmpty();
@@ -106,11 +108,12 @@ class PointServiceTest {
         void givenNotExistId_whenFindPointHistory_thenReturnEmptyPointHistoryList() {
             // given
             long userId = 1L;
-            when(pointHistoryRepository.findAllByUserId(userId))
+            PageRequest pageRequest = new PageRequest(0, 10);
+            when(pointHistoryRepository.findAllByUserId(userId, pageRequest))
                     .thenReturn(List.of());
 
             // when
-            List<PointHistory> pointHistoryList = pointService.findPointHistoriesByUserId(userId);
+            List<PointHistory> pointHistoryList = pointService.findPointHistoriesByUserId(userId, pageRequest);
 
             // then
             assertThat(pointHistoryList).isEmpty();

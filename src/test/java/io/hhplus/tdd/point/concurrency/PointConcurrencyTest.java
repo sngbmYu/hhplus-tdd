@@ -12,8 +12,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import io.hhplus.tdd.common.pagination.PageRequest;
 import io.hhplus.tdd.point.domain.PointHistory;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -79,7 +79,7 @@ public class PointConcurrencyTest {
         UserPoint userPoint = userPointRepository.findById(userId);
         assertThat(userPoint.point()).isEqualTo(amount * threadCount);
 
-        long useCount = pointHistoryRepository.findAllByUserId(userId).stream()
+        long useCount = pointHistoryRepository.findAllByUserId(userId, new PageRequest(0, threadCount)).stream()
                 .filter(history -> history.type() == TransactionType.CHARGE)
                 .count();
         assertThat(useCount).isEqualTo(threadCount);
@@ -129,7 +129,7 @@ public class PointConcurrencyTest {
         UserPoint userPoint = userPointRepository.findById(userId);
         assertThat(userPoint.point()).isEqualTo(0L);
 
-        long useCount = pointHistoryRepository.findAllByUserId(userId).stream()
+        long useCount = pointHistoryRepository.findAllByUserId(userId, new PageRequest(0, threadCount)).stream()
                 .filter(history -> history.type() == TransactionType.USE)
                 .count();
         assertThat(useCount).isEqualTo(threadCount);
@@ -191,13 +191,13 @@ public class PointConcurrencyTest {
         UserPoint userPoint = userPointRepository.findById(userId);
         assertThat(userPoint.point()).isEqualTo(initAmount);
 
-        long useCount = pointHistoryRepository.findAllByUserId(userId).stream()
+        long useCount = pointHistoryRepository.findAllByUserId(userId, new PageRequest(0, threadCount)).stream()
                 .filter(history -> history.type() == TransactionType.USE)
                 .mapToLong(PointHistory::amount)
                 .sum();
         assertThat(useCount).isEqualTo(useThreadCount * amount);
 
-        long chargeCount = pointHistoryRepository.findAllByUserId(userId).stream()
+        long chargeCount = pointHistoryRepository.findAllByUserId(userId, new PageRequest(0, threadCount)).stream()
                 .filter(history -> history.type() == TransactionType.CHARGE)
                 .mapToLong(PointHistory::amount)
                 .sum();

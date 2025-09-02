@@ -18,13 +18,13 @@ class ApiControllerAdvice extends ResponseEntityExceptionHandler {
 		return ResponseEntity.status(400).body(new ErrorResponse("400", "잘못된 요청 파라미터입니다."));
 	}
 
-	@ExceptionHandler(value = AmountExceedBalanceException.class)
-	public ResponseEntity<ErrorResponse> handleAmountExceedBalanceException(AmountExceedBalanceException e) {
+	@ExceptionHandler(value = {AmountExceedBalanceException.class, IllegalArgumentException.class})
+	public ResponseEntity<ErrorResponse> handleAmountExceedBalanceException(RuntimeException e) {
 		return ResponseEntity.status(400).body(new ErrorResponse("400", e.getMessage()));
 	}
 
     @ExceptionHandler(value = {ChargePointFailureException.class, UsePointFailureException.class})
-    public ResponseEntity<ErrorResponse> handleChargePointFailureException(ChargePointFailureException e) {
+    public ResponseEntity<ErrorResponse> handleChargePointFailureException(RuntimeException e) {
         return ResponseEntity.status(500).body(new ErrorResponse("500", e.getMessage()));
     }
 

@@ -1,5 +1,6 @@
 package io.hhplus.tdd.point.presentation;
 
+import io.hhplus.tdd.common.pagination.PageRequest;
 import io.hhplus.tdd.point.application.PointService;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.UserPoint;
@@ -31,9 +32,11 @@ public class PointController {
 
     @GetMapping("{id}/histories")
     public List<PointHistory> history(
-            @PathVariable @PositiveOrZero long id
+            @PathVariable @PositiveOrZero long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        return pointService.findPointHistoriesByUserId(id);
+        return pointService.findPointHistoriesByUserId(id, new PageRequest(page, size));
     }
 
     @PatchMapping("{id}/charge")

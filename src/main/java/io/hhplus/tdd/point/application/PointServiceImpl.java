@@ -5,6 +5,7 @@ import static io.hhplus.tdd.point.domain.TransactionType.*;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
+import io.hhplus.tdd.common.pagination.PageRequest;
 import org.springframework.stereotype.Service;
 
 import io.hhplus.tdd.common.LockManager;
@@ -41,8 +42,8 @@ public class PointServiceImpl implements PointService {
 	}
 
 	@Override
-	public List<PointHistory> findPointHistoriesByUserId(long userId) {
-		return pointHistoryRepository.findAllByUserId(userId);
+	public List<PointHistory> findPointHistoriesByUserId(long userId, PageRequest pageRequest) {
+		return pointHistoryRepository.findAllByUserId(userId, pageRequest);
 	}
 
 	@Override

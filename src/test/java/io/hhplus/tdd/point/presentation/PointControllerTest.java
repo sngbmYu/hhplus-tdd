@@ -40,15 +40,43 @@ class PointControllerTest {
 		// given
 		long zeroUserId = 0L;
 		long negativeUserId = -1L;
+        int page = 0;
+        int size = 10;
 
 		// when
-		ThrowableAssert.ThrowingCallable zeroCase = () -> pointController.history(zeroUserId);
-		ThrowableAssert.ThrowingCallable negativeCase = () -> pointController.history(negativeUserId);
+		ThrowableAssert.ThrowingCallable zeroCase = () -> pointController.history(zeroUserId, page, size);
+		ThrowableAssert.ThrowingCallable negativeCase = () -> pointController.history(negativeUserId, page, size);
 
 		// then
 		assertThatCode(zeroCase).doesNotThrowAnyException();
 		assertThatThrownBy(negativeCase).isInstanceOf(ConstraintViolationException.class);
 	}
+
+    // 테스트 작성 이유: 페이지네이션 요청 객체 PageRequest가 정상적으로 동작하는지 검증하기 위해
+    @Test
+    @DisplayName("PageRequest가 경계값으로 주어졌을 때 포인트 내역을 조회하면 IllegalArgumentException이 발생한다.")
+    void givenInvalidPagingParams_whenFindPointHistory_thenThrowIllegalArgumentException() {
+        // given
+        long userId = 0L;
+
+        int normalPage = 0;
+        int invalidSize = 0;
+
+        int invalidPage = -1;
+        int normalSize = 10;
+
+        // when
+        ThrowableAssert.ThrowingCallable invalidSizeCase = () -> pointController.history(userId, normalPage, invalidSize);
+        ThrowableAssert.ThrowingCallable invalidPageCase = () -> pointController.history(userId, invalidPage, normalSize);
+
+        // then
+        assertThatThrownBy(invalidSizeCase)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("size 값은 1 이상이어야 합니다.");
+        assertThatThrownBy(invalidPageCase)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("page 값은 0 이상이어야 합니다.");
+    }
 
     // 테스트 작성 이유: 메서드 수준 Bean Validation(@PositiveOrZero)이 정상적으로 동작하는지 검증하기 위해
 	@Test
