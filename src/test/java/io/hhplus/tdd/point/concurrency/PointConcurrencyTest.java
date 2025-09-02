@@ -11,9 +11,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 import io.hhplus.tdd.common.pagination.PageRequest;
 import io.hhplus.tdd.point.domain.PointHistory;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -202,5 +204,54 @@ public class PointConcurrencyTest {
                 .mapToLong(PointHistory::amount)
                 .sum();
         assertThat(chargeCount).isEqualTo(chargeThreadCount * amount);
+    }
+
+    @Disabled("실행 시간이 길어 CI에서는 제외, 필요 시 주석 처리")
+    @Test
+    @DisplayName("여러 스레드가 동시에 접근해도 lock release는 안전하게 처리되어야 한다.")
+    void givenManyThreads_whenReleaseLock_thenNoConcurrencyIssue() throws InterruptedException {
+        // given
+        int key = 8;
+        int threads = 16;
+        int iteration = 50;
+        long amount = 10L;
+
+        ExecutorService threadPool = Executors.newFixedThreadPool(threads);
+
+        // when
+        CountDownLatch ready = new CountDownLatch(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+
+        for (int i = 0; i < threads; i++) {
+            final int seed = i;
+
+            threadPool.submit(() -> {
+                ready.countDown();
+                try {
+                    start.await();
+                    for (int j = 0; j < iteration; j++) {
+                        pointService.chargeUserPoint(seed % key, amount);
+                    }
+                } catch (Throwable t) {
+                    failures.add(t);
+                } finally {
+                    done.countDown();
+                }
+            });
+        }
+
+        ready.await();
+        start.countDown();
+        done.await();
+
+        threadPool.shutdown();
+
+        // then
+        assertThat(failures).isEmpty();
+        long sum = IntStream.range(0, key).mapToLong(i -> userPointRepository.findById(i).point()).sum();
+        assertThat(sum).isEqualTo(threads * iteration * amount);
     }
 }

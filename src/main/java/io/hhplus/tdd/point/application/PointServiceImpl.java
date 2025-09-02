@@ -50,7 +50,7 @@ public class PointServiceImpl implements PointService {
 	public UserPoint chargeUserPoint(long userId, long amount) {
 		validAmount(amount);
 
-		ReentrantLock lock = lockManager.getLock(userId);
+		ReentrantLock lock = lockManager.acquire(userId);
 		lock.lock();
 
 		try {
@@ -67,6 +67,7 @@ public class PointServiceImpl implements PointService {
 			return savedUserPoint;
 		} finally {
 			lock.unlock();
+            lockManager.release(userId);
 		}
 	}
 
@@ -74,7 +75,7 @@ public class PointServiceImpl implements PointService {
 	public UserPoint useUserPoint(long userId, long amount) {
 		validAmount(amount);
 
-		ReentrantLock lock = lockManager.getLock(userId);
+		ReentrantLock lock = lockManager.acquire(userId);
 		lock.lock();
 
 		try {
@@ -89,6 +90,7 @@ public class PointServiceImpl implements PointService {
 			return savedUserPoint;
 		} finally {
 			lock.unlock();
+            lockManager.release(userId);
 		}
 	}
 
